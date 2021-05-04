@@ -11,7 +11,7 @@ use serenity::{
   }
 };
 
-use crate::config::*;
+use crate::data::config::{Config, ConfigContainer};
 use crate::handler::*;
 use super::*;
 
@@ -24,8 +24,9 @@ struct Admin;
 #[checks(admin)]
 async fn assign(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
   let config = data_get::<ConfigContainer>(&ctx).await;
+  let config_lock = config.read().await;
   if let Some(mut member) = get_member_from_args(&ctx, &msg, &mut args).await {
-    if let Some(role) = change_assignable_logic(&config, &member, Scheme::Assign(args.rest())) {
+    if let Some(role) = change_assignable(&config_lock, &member, Scheme::Assign(args.rest())) {
       match member.add_role(&ctx, role).await {
         Ok(_) => react_success(&ctx, &msg).await,
         Err(_) => react_failure(&ctx, &msg).await
@@ -43,8 +44,9 @@ async fn assign(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 #[command]
 async fn unassign(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
   let config = data_get::<ConfigContainer>(&ctx).await;
+  let config_lock = config.read().await;
   if let Some(mut member) = get_member_from_args(&ctx, &msg, &mut args).await {
-    if let Some(role) = change_assignable_logic(&config, &member, Scheme::Unassign(args.rest())) {
+    if let Some(role) = change_assignable(&config_lock, &member, Scheme::Unassign(args.rest())) {
       match member.remove_role(&ctx, role).await {
         Ok(_) => react_success(&ctx, &msg).await,
         Err(_) => react_failure(&ctx, &msg).await
@@ -59,7 +61,7 @@ async fn unassign(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
   Ok(())
 }
 
-fn change_assignable_logic(config: &Config, member: &Member, scheme: Scheme<'_>) -> Option<RoleId> {
+fn change_assignable(config: &Config, member: &Member, scheme: Scheme<'_>) -> Option<RoleId> {
   let role = config.get_assignable_loose(scheme.as_str())?;
   match (scheme, member.roles.contains(&role)) {
     (Scheme::Assign(_), true) => None,

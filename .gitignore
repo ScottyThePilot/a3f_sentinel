@@ -8,4 +8,5 @@ Cargo.lock
 **/*.rs.bk
 
 # Secret files
-config.ron
+/config.*
+/persist.*

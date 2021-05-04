@@ -15,8 +15,9 @@ use serenity::{
   }
 };
 
-use crate::config::*;
+use crate::data::config::ConfigContainer;
 use crate::handler::*;
+use crate::util::ResultExt;
 
 pub mod groups {
   pub use super::admin::ADMIN_GROUP;
@@ -29,12 +30,13 @@ pub mod groups {
 async fn admin_check(ctx: &Context, msg: &Message, _: &mut Args, _: &CommandOptions) -> Result<(), Reason> {
   // Is the user on the list of owners?
   let config = data_get::<ConfigContainer>(&ctx).await;
-  if config.owners.contains(&msg.author.id) { return Ok(()) };
+  let config_lock = config.read().await;
+  if config_lock.owners.contains(&msg.author.id) { return Ok(()) };
 
   if let Ok(member) = msg.member(&ctx).await {
     // Does the user have an administrator role?
     let has_admin_role = member.roles.iter()
-      .any(|&role| config.is_admin_role(role));
+      .any(|&role| config_lock.is_admin_role(role));
     if has_admin_role { return Ok(()) };
 
     // Does the user have the administrator permission?
@@ -51,9 +53,9 @@ async fn get_member_from_args(ctx: &Context, msg: &Message, args: &mut Args) -> 
 }
 
 async fn react_success(ctx: &Context, msg: &Message) {
-  ignore!(msg.react(&ctx, '\u{2705}').await);
+  msg.react(&ctx, '\u{2705}').await.report();
 }
 
 async fn react_failure(ctx: &Context, msg: &Message) {
-  ignore!(msg.react(&ctx, '\u{274e}').await);
+  msg.react(&ctx, '\u{274e}').await.report();
 }
